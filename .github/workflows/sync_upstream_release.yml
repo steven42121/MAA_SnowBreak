@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  workflows: write
   actions: write
 
 concurrency:
@@ -73,7 +72,14 @@ jobs:
           git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
           git fetch upstream "${TARGET_BRANCH}" --no-tags
 
+          flavor_head="$(git rev-parse HEAD)"
           git merge --no-edit "upstream/${TARGET_BRANCH}"
+          # 保留发行仓库自有 CI，避免 push 修改 workflow 触发 workflows 权限限制
+          git checkout "${flavor_head}" -- .github/workflows/
+          git add .github/workflows/
+          if ! git diff --cached --quiet; then
+            git commit -m "sync: retain flavor CI workflows"
+          fi
           git push origin "HEAD:${TARGET_BRANCH}"
 
           if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
